@@ -1,0 +1,93 @@
+"""PDF OCR -> text/table extraction -> submit to LightRAG upload endpoint.
+
+Requirements (Windows):
+- Install Tesseract OCR and add to PATH (https://github.com/tesseract-ocr/tesseract)
+- Install poppler and add to PATH (for pdf2image)
+- Python packages: pip install pytesseract pdf2image pdfplumber requests pandas
+
+This script will:
+1. Try to extract selectable text and tables with pdfplumber.
+2. If no text, rasterize pages with pdf2image and run pytesseract OCR.
+3. Merge extracted text and table CSVs into a single .txt file.
+4. POST the original PDF file to LightRAG `/documents/upload` (server must be running).
+"""
+import os
+import sys
+import tempfile
+import pdfplumber
+from pdf2image import convert_from_path
+import pytesseract
+import requests
+import pandas as pd
+
+LIGHTRAG_UPLOAD_URL = os.environ.get("LIGHTRAG_UPLOAD_URL", "http://127.0.0.1:9621/documents/upload")
+
+def extract_with_pdfplumber(pdf_path):
+    text_parts = []
+    tables = []
+    with pdfplumber.open(pdf_path) as pdf:
+        for page in pdf.pages:
+            txt = page.extract_text()
+            if txt:
+                text_parts.append(txt)
+            page_tables = page.extract_tables()
+            for t in page_tables:
+                df = pd.DataFrame(t[1:], columns=t[0]) if len(t) > 1 else pd.DataFrame(t)
+                tables.append(df)
+    return "\n\n".join(text_parts), tables
+
+def ocr_with_pytesseract(pdf_path):
+    text_parts = []
+    images = convert_from_path(pdf_path)
+    for img in images:
+        txt = pytesseract.image_to_string(img, lang='kor+eng')
+        text_parts.append(txt)
+    return "\n\n".join(text_parts)
+
+def save_tables_as_csv(tables, out_dir):
+    paths = []
+    for i, df in enumerate(tables):
+        p = os.path.join(out_dir, f"table_{i}.csv")
+        df.to_csv(p, index=False)
+        paths.append(p)
+    return paths
+
+def submit_pdf(pdf_path):
+    with open(pdf_path, 'rb') as f:
+        files = {'file': (os.path.basename(pdf_path), f, 'application/pdf')}
+        r = requests.post(LIGHTRAG_UPLOAD_URL, files=files)
+        return r
+
+def process_and_submit(pdf_path):
+    text, tables = extract_with_pdfplumber(pdf_path)
+    if not text.strip():
+        print("No selectable text, running OCR...")
+        text = ocr_with_pytesseract(pdf_path)
+    else:
+        print("Extracted selectable text via pdfplumber.")
+
+    with tempfile.TemporaryDirectory() as td:
+        txt_path = os.path.join(td, "extracted.txt")
+        with open(txt_path, 'w', encoding='utf-8') as wf:
+            wf.write(text)
+            wf.write('\n\n')
+        csv_paths = []
+        if tables:
+            csv_paths = save_tables_as_csv(tables, td)
+            print(f"Saved {len(csv_paths)} table(s) as CSV")
+
+        print("Submitting original PDF to LightRAG upload endpoint...")
+        resp = submit_pdf(pdf_path)
+        print("Response:", resp.status_code, resp.text[:400])
+        return resp.status_code == 200
+
+if __name__ == '__main__':
+    if len(sys.argv) < 2:
+        print("Usage: python tools/pdf_ocr_and_submit.py <file.pdf>")
+        sys.exit(1)
+    pdf = sys.argv[1]
+    ok = process_and_submit(pdf)
+    if ok:
+        print("Submitted successfully")
+    else:
+        print("Submit failed")
