@@ -88,3 +88,42 @@
 - 서버 상태: `healthy`
 - 임베딩 바인딩: `openai` (1536 dim)
 - 작업 상태: 문서 1건 재인덱싱 진행 중
+
+---
+
+## 2026-02-14: 임베딩 완료 검증 및 WebUI 이슈 원인 분석
+
+### 1) 인덱싱 완료 상태 확인
+- Health: `healthy`
+- 문서 상태: `processed=1`, `failed=0`
+- 그래프/벡터 저장 확인:
+  - `graph_chunk_entity_relation.graphml` 로드 성공
+  - 그래프 크기: `462 nodes`, `358 edges`
+  - 벡터 차원: `1536` (OpenAI `text-embedding-3-small`)
+
+### 2) 증상
+- Knowledge Graph 탭: `Empty (Try Reload Again)`만 표시
+- Retrieval 탭: `Network connection error, please check your internet connection`
+
+### 3) 분석 결과
+- 백엔드 API는 정상 동작:
+  - `/query`, `/query/data`, `/query/stream` 응답 확인
+  - `/graphs?label=...` 정상 응답 확인
+- 로그에서 UI 실패 패턴 확인:
+  - `GET /graph` -> `404`
+  - `GET /graphs` (label 없음) -> `422`
+- 결론:
+  - 임베딩 실패가 아니라 **WebUI 탭 캐시/상태 불일치**가 주원인
+  - 서버 프로세스가 중복 실행되던 시점과 겹쳐 증상 재현 가능성 증가
+
+### 4) 조치
+- 새 탭/새 세션에서 `http://127.0.0.1:9700/webui/` 접속
+- 강력 새로고침(`Ctrl+F5`) 또는 시크릿 창 사용
+- 서버는 단일 프로세스로 유지 (`C:\LightRAG\.venv\Scripts\python.exe -m lightrag.api.lightrag_server`)
+
+### 5) 운영 기준(재발 방지)
+- 접속 URL은 `localhost`보다 `127.0.0.1` 고정 사용
+- UI 이상 시:
+  1. `/health`, `/documents/status_counts`로 백엔드 상태 먼저 확인
+  2. 브라우저 캐시 무효화 후 재접속
+  3. 중복 서버 프로세스/포트 점유 확인
