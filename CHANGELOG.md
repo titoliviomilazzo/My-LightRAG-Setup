@@ -103,3 +103,18 @@
 - 서버/파이프라인: 헬스체크 및 인덱싱 결과 검증 완료 기록 유지
 - 그래프/벡터: 생성 및 차원 일치 확인 완료
 - 잔여 작업: 품질 검증표 10문항을 실제 질의 결과로 채점해 베이스라인 확정
+
+---
+
+## 2026-02-15: 품질 개선 스크립트 적용
+- 목적: 문자 깨짐(PUA/모지바케) 정제 + 인덱싱 전 검증 + 10문항 재채점 자동화
+- 추가 파일:
+  - `config/pua_replacements.json`
+  - `scripts/normalize_corpus.py`
+  - `scripts/validate_corpus.py`
+  - `scripts/re_evaluate_quality.py`
+- 문서 반영:
+  - `README.md`에 Quality Recovery Workflow 추가
+- 결과:
+  - 10문항 자동채점 재실행
+  - 총점 `86/100`, 평균 `8.6/10`, 최종 `PASS`

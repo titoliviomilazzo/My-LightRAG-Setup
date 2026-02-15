@@ -67,3 +67,21 @@ SUMMARY_LANGUAGE=Korean
   - 임베딩 실패가 아니라 브라우저 캐시/탭 상태 불일치로 재현 가능
   - 해결: `http://127.0.0.1:9700/webui/`로 재접속 + `Ctrl+F5`
 
+
+## Quality Recovery Workflow
+
+Use these scripts before re-indexing and re-scoring:
+
+```powershell
+# 1) Normalize extracted corpus text (in-place write)
+python scripts/normalize_corpus.py --input-dir C:\LightRAG\inputs --write --report-file normalization_report.json
+
+# 2) Validate corpus quality (non-zero exit when issues remain)
+python scripts/validate_corpus.py --input-dir C:\LightRAG\inputs --report-file validation_report.json
+
+# 3) Re-evaluate 10 questions against running LightRAG API
+python scripts/re_evaluate_quality.py --quality-md "LightRAG 품질 검증표 (10문항).md" --base-url http://127.0.0.1:9700 --mode hybrid
+```
+
+Replacement map file:
+- `config/pua_replacements.json`
