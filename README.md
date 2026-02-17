@@ -104,3 +104,50 @@ python scripts/run_isolated_project_evaluation.py --quality-md "LightRAG 품질 
 - This runs project-by-project with isolated index (single PDF loaded each run).
 - It is slow on large PDFs and can take hours.
 - During the run, LightRAG pipeline stays busy.
+
+## Retrieval Presets (Recommended)
+
+### 1) 운영 기본 (출처 명확 + 혼합 최소화)
+- Additional Output Prompt:
+  - `답변 각 항목 끝에 [프로젝트명 | 파일명]을 붙이고, 근거 없는 내용은 "근거없음"으로 표시.`
+- Query Mode: `local` (일반 질의는 `hybrid`)
+- KG Top K: `16`
+- Chunk Top K: `10`
+- Max Entity Tokens: `3000`
+- Max Relation Tokens: `3000`
+- Max Total Tokens: `12000`
+- Enable Rerank: `ON`
+- Only Need Context: `OFF` (검증 시 `ON`)
+- Only Need Prompt: `OFF`
+- Stream Response: `ON`
+
+### 2) 표/수치 추출 모드
+- 목적: 표의 수치/조건 정확 추출
+- Additional Output Prompt:
+  - `수치는 원문 단위 그대로 쓰고, 항목별로 [프로젝트명 | 파일명 | 표/본문] 근거를 붙여라.`
+- Query Mode: `local`
+- KG Top K: `12`
+- Chunk Top K: `10`
+- Max Entity Tokens: `2500`
+- Max Relation Tokens: `2500`
+- Max Total Tokens: `10000`
+- Enable Rerank: `ON`
+- Only Need Context: `OFF` (값 검증할 때 `ON`)
+
+### 3) 그래프/관계 해석 모드
+- 목적: 부재-관계, 보강 전후 관계 설명
+- Additional Output Prompt:
+  - `관계 해석은 항목별로 근거를 제시하고, 프로젝트가 다르면 절대 합치지 말라.`
+- Query Mode: `hybrid`
+- KG Top K: `20`
+- Chunk Top K: `10`
+- Max Entity Tokens: `3000`
+- Max Relation Tokens: `3500`
+- Max Total Tokens: `14000`
+- Enable Rerank: `ON`
+- Only Need Context: `OFF`
+
+### Quick Rules
+- 프로젝트가 특정된 질문이면 `local` + 낮은 `Chunk Top K` 사용
+- 프로젝트가 섞이는 답이 나오면 `KG Top K`, `Chunk Top K`, `Max Total Tokens`를 먼저 낮춤
+- 최종 보고 전에는 `Only Need Context=ON`으로 근거 청크를 한 번 확인
