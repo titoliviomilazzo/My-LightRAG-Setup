@@ -85,3 +85,22 @@ python scripts/re_evaluate_quality.py --quality-md "LightRAG 품질 검증표 (1
 
 Replacement map file:
 - `config/pua_replacements.json`
+
+## Strict Project-Aware Query Run
+
+```powershell
+python scripts/run_strict_project_queries.py --quality-md "LightRAG 품질 검증표 (10문항).md" --output-md "LightRAG 프로젝트별 엄격 질의 결과.md" --base-url http://127.0.0.1:9700 --mode local --min-target-hits 1
+```
+
+- Output: `LightRAG 프로젝트별 엄격 질의 결과.md`
+- This report always shows target project, dominant referenced project, and pass/fail per row.
+
+## Isolated Index Evaluation (Option 1)
+
+```powershell
+python scripts/run_isolated_project_evaluation.py --quality-md "LightRAG 품질 검증표 (10문항).md" --output-md "LightRAG 프로젝트별 분리인덱스 엄격 결과.md" --base-url http://127.0.0.1:9700 --restore-full-index
+```
+
+- This runs project-by-project with isolated index (single PDF loaded each run).
+- It is slow on large PDFs and can take hours.
+- During the run, LightRAG pipeline stays busy.
